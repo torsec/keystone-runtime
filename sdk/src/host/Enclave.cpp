@@ -191,7 +191,7 @@ Enclave::init(
 
   if (pDevice->finalize(
           pMemory->getRuntimePhysAddr(), pMemory->getEappPhysAddr(),
-          pMemory->getFreePhysAddr(), params.getFreeMemSize()) != Error::Success) {
+          pMemory->getFreePhysAddr(), params.getFreeMemSize(), params.getUuid()) != Error::Success) {
     destroy();
     return Error::DeviceError;
   }

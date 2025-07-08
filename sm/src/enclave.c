@@ -12,6 +12,9 @@
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_locks.h>
 #include <sbi/sbi_console.h>
+#ifdef PRINT_TICKS
+#include <sbi/sbi_timer.h>
+#endif
 
 struct enclave enclaves[ENCL_MAX];
 
@@ -31,6 +34,18 @@ extern byte dev_public_key[PUBLIC_KEY_SIZE];
  * Internal use by SBI calls
  *
  ****************************/
+
+/* Retrieve an enclave id given the UUID of an enclave*/
+static inline enclave_id get_enclave_id_by_uuid(byte* uuid){
+  enclave_id eid;
+  for (eid = 0; eid < ENCL_MAX; eid++) {
+    if (enclaves[eid].state != INVALID)
+      if (sbi_memcmp(enclaves[eid].uuid, (char *)uuid, UUID_LEN - 1) == 0)
+        return eid;
+  }
+
+  return -1;
+}
 
 /* Internal function containing the core of the context switching
  * code to the enclave.
@@ -273,6 +288,21 @@ static unsigned long copy_enclave_report(struct enclave* enclave,
     return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
+unsigned long copy_runtime_attestation_report_into_sm(uintptr_t src, struct runtime_report* dest) {
+  if (copy_to_sm(dest, src, sizeof(struct runtime_report)))
+    return SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
+  else
+    return SBI_ERR_SM_ENCLAVE_SUCCESS;
+}
+
+unsigned long copy_runtime_attestation_report_from_sm(struct runtime_report* src, uintptr_t dest) {
+  if (copy_from_sm(dest, src, sizeof(struct runtime_report)))
+    return SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
+  else
+    return SBI_ERR_SM_ENCLAVE_SUCCESS;
+}
+
+
 static int is_create_args_valid(struct keystone_sbi_create_t* args)
 {
   uintptr_t epm_start, epm_end;
@@ -387,6 +417,9 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create_t
 
   // initialize enclave metadata
   enclaves[eid].eid = eid;
+
+  sbi_strncpy((char*) enclaves[eid].uuid, (const char*) create_args.uuid, UUID_LEN);
+  sbi_printf("[SM] Enclave %d UUID set to %s\n", eid, enclaves[eid].uuid);
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
@@ -556,6 +589,13 @@ unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave
   spin_lock(&encl_lock);
   stoppable = enclaves[eid].state == RUNNING;
   if (stoppable) {
+    // Save enclave's updated satp for runtime attestation
+    /* The satp register is updated during the Eyrie boot process
+       to refer to the Runtime's page table. If an attestation
+       request is received, we have to be in the host's context, 
+       so the satp will be already updated */
+    enclaves[eid].encl_satp = csr_read(satp);
+
     enclaves[eid].n_thread--;
     if(enclaves[eid].n_thread == 0)
       enclaves[eid].state = STOPPED;
@@ -564,7 +604,7 @@ unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave
 
   if(!stoppable)
     return SBI_ERR_SM_ENCLAVE_NOT_RUNNING;
-
+  
   context_switch_to_host(regs, eid, request == STOP_EDGE_CALL_HOST);
 
   switch(request) {
@@ -597,7 +637,7 @@ unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid)
 
   // Enclave is OK to resume, context switch to it
   context_switch_to_enclave(regs, eid, 0);
-
+  
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
@@ -609,6 +649,11 @@ unsigned long attest_enclave(uintptr_t report_ptr, uintptr_t data, uintptr_t siz
 
   if (size > ATTEST_DATA_MAXLEN)
     return SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
+
+  #if PRINT_TICKS
+  unsigned long time_start, time_end;
+  time_start = sbi_timer_value();
+  #endif
 
   spin_lock(&encl_lock);
   attestable = (ENCLAVE_EXISTS(eid)
@@ -656,6 +701,11 @@ unsigned long attest_enclave(uintptr_t report_ptr, uintptr_t data, uintptr_t siz
 
   ret = SBI_ERR_SM_ENCLAVE_SUCCESS;
 
+  #ifdef PRINT_TICKS
+  time_end = sbi_timer_value();
+  sbi_printf("[SM] Time elapsed for creating boot-time report: %lu ticks\n", time_end - time_start);
+  #endif
+
 err_unlock:
   spin_unlock(&encl_lock);
   return ret;
@@ -680,3 +730,71 @@ unsigned long get_sealing_key(uintptr_t sealing_key, uintptr_t key_ident,
 
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
+
+unsigned long runtime_attestation(struct runtime_report *report) {
+  int eid, ret = 0;
+  unsigned char sign_buffer[MDSIZE + NONCE_LEN];
+
+  #if PRINT_TICKS
+  unsigned long time_start, time_end;
+  time_start = sbi_timer_value();
+  #endif
+
+  spin_lock(&encl_lock);
+
+  eid = get_enclave_id_by_uuid(report->enclave.uuid);
+
+  if (eid < 0) {
+    sbi_printf("[SM] Enclave not found\n");
+    ret = SBI_ERR_SM_ENCLAVE_INVALID_ID;
+    goto err_unlock;
+  }
+  
+  if (enclaves[eid].state != RUNNING && enclaves[eid].state != STOPPED) {
+    sbi_printf("[SM] Enclave not measured: it must be in STOPPED or RUNNING state\n");
+    sbi_memset(report->enclave.hash, 0, MDSIZE);
+    ret = SBI_ERR_SM_ENCLAVE_NOT_RUNNING;
+    goto err_unlock;
+  }
+
+  sbi_printf("[SM] Enclave %d is being measured... ", eid);
+
+  if (compute_enclave_runtime_hash(&enclaves[eid]) < 0) {
+    sbi_printf("[SM] Error while computing the runtime hash\n");
+    sbi_memset(report->enclave.hash, 0, MDSIZE);
+    goto err_unlock;
+  }
+  
+  sbi_strncpy((char*) report->enclave.uuid, (const char*) enclaves[eid].uuid, UUID_LEN);
+  sbi_memcpy(report->enclave.hash, enclaves[eid].runtime_hash, MDSIZE);
+
+  // Copy hash and nonce to temp buffer (hash || nonce)
+  sbi_memcpy(sign_buffer, enclaves[eid].runtime_hash, MDSIZE);
+  sbi_memcpy(sign_buffer + MDSIZE, report->nonce, NONCE_LEN);    
+  // ed25519_sign(report->enclave.signature, sign_buffer, MDSIZE + NONCE_LEN, enclaves[eid].local_att_pub, enclaves[eid].local_att_priv);
+  
+  sbi_memcpy(report->dev_public_key, dev_public_key, PUBLIC_KEY_SIZE);
+  sbi_memcpy(report->sm.hash, sm_hash, MDSIZE);
+  sbi_memcpy(report->sm.public_key, sm_public_key, PUBLIC_KEY_SIZE);
+  sbi_memcpy(report->sm.signature, sm_signature, SIGNATURE_SIZE);
+
+  if (ret) {
+    ret = SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
+    goto err_unlock;
+  }
+
+  ret = SBI_ERR_SM_ENCLAVE_SUCCESS;
+
+  sbi_printf("[SM] Operation completed\n");
+
+  #ifdef PRINT_TICKS
+  time_end = sbi_timer_value();
+  sbi_printf("[SM] Time elapsed for creating run-time report: %lu ticks\n", time_end - time_start);
+  #endif
+
+err_unlock:
+  spin_unlock(&encl_lock);
+  
+  return ret;
+}
+

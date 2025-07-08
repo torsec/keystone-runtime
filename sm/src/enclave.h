@@ -18,8 +18,13 @@
 #include TARGET_PLATFORM_HEADER
 
 #define ATTEST_DATA_MAXLEN  1024
+
 /* TODO: does not support multithreaded enclave yet */
 #define MAX_ENCL_THREADS 1
+
+#define PRINT_TICKS 1
+
+typedef uintptr_t pte_t;
 
 typedef enum {
   INVALID = -1,
@@ -56,16 +61,37 @@ struct enclave_region
 struct enclave
 {
   //spinlock_t lock; //local enclave lock. we don't need this until we have multithreaded enclave
-  enclave_id eid; //enclave id
-  unsigned long encl_satp; // enclave's page table base
-  enclave_state state; // global state of the enclave
+  enclave_id eid;                   // enclave id
+  unsigned char uuid[UUID_LEN];     // UUID externally provided, must be unique
+  unsigned long encl_satp;          // enclave's page table base
+  enclave_state state;              // global state of the enclave
 
   /* Physical memory regions associate with this enclave */
   struct enclave_region regions[ENCLAVE_REGIONS_MAX];
 
   /* measurement */
   byte hash[MDSIZE];
+  byte runtime_hash[MDSIZE];
   byte sign[SIGNATURE_SIZE];
+
+  // DICE parameters
+  // byte CDI[64];
+  // byte local_att_pub[32];
+  // byte local_att_priv[64];
+  // mbedtls_x509write_cert crt_local_att;
+  // unsigned char crt_local_att_der[MAX_CERT_LEN];
+  // int crt_local_att_der_length;
+
+  // byte pk_ldev[32];
+  // byte sk_ldev[64];
+  // mbedtls_x509write_cert crt_ldev;
+  // unsigned char crt_ldev_der[MAX_CERT_LEN];
+  // int crt_ldev_der_length;
+
+  // byte sk_array[10][64];
+  // byte pk_array[10][32];
+  // int n_keypair;
+
 
   /* parameters */
   struct runtime_params_t params;
@@ -98,6 +124,21 @@ struct report
   byte dev_public_key[PUBLIC_KEY_SIZE];
 };
 
+/* runtime attestation reports */
+struct enclave_runtime_report
+{
+  byte uuid[UUID_LEN];
+  byte hash[MDSIZE];
+  byte signature[SIGNATURE_SIZE];     // sign(hash || nonce)
+};
+struct runtime_report
+{
+  struct enclave_runtime_report enclave;
+  struct sm_report sm;
+  byte dev_public_key[PUBLIC_KEY_SIZE];
+  byte nonce[NONCE_LEN];
+};
+
 /* sealing key structure */
 #define SEALING_KEY_SIZE 128
 struct sealing_key
@@ -106,25 +147,38 @@ struct sealing_key
   uint8_t signature[SIGNATURE_SIZE];
 };
 
+struct lak_cert_args
+{
+    unsigned char uuid[UUID_LEN];
+    unsigned char cert_lak[MAX_CERT_LEN];
+    int cert_len;
+};
+
+
 /*** SBI functions & external functions ***/
 // callables from the host
 unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create_t create_args);
 unsigned long destroy_enclave(enclave_id eid);
 unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid);
+unsigned long compute_enclave_runtime_hash(struct enclave* enclave);
 // callables from the enclave
 unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave_id eid);
 unsigned long attest_enclave(uintptr_t report, uintptr_t data, uintptr_t size, enclave_id eid);
 // attestation
 unsigned long validate_and_hash_enclave(struct enclave* enclave);
+unsigned long runtime_attestation(struct runtime_report *report);
 // TODO: These functions are supposed to be internal functions.
 void enclave_init_metadata(void);
 unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create_t* dest);
+unsigned long copy_runtime_attestation_report_into_sm(uintptr_t src, struct runtime_report* dest);
+unsigned long copy_runtime_attestation_report_from_sm(struct runtime_report* src, uintptr_t dest);
 int get_enclave_region_index(enclave_id eid, enum enclave_region_type type);
 uintptr_t get_enclave_region_base(enclave_id eid, int memid);
 uintptr_t get_enclave_region_size(enclave_id eid, int memid);
 unsigned long get_sealing_key(uintptr_t seal_key, uintptr_t key_ident, size_t key_ident_size, enclave_id eid);
 // interrupt handlers
 void sbi_trap_handler_keystone_enclave(struct sbi_trap_regs *regs);
+
 #endif

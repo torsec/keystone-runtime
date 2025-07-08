@@ -95,7 +95,7 @@ eyrie_boot(uintptr_t dummy, // $a0 contains the return value from the SBI
   runtime_va_start = (uintptr_t) &rt_base;
   kernel_offset = runtime_va_start - runtime_paddr;
 
-  debug("ROOT PAGE TABLE: 0x%lx", root_page_table);
+  debug("ROOT PAGE TABLE: p: 0x%lx, v: 0x%lx", (csr_read(satp) << RISCV_PAGE_BITS), root_page_table);
   debug("UTM : 0x%lx-0x%lx (%u KB)", utm_vaddr, utm_vaddr+utm_size, utm_size/1024);
   debug("DRAM: 0x%lx-0x%lx (%u KB)", dram_base, dram_base + dram_size, dram_size/1024);
   debug("USER: 0x%lx-0x%lx (%u KB)", user_paddr, free_paddr, (free_paddr-user_paddr)/1024);

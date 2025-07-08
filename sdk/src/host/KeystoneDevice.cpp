@@ -41,13 +41,14 @@ KeystoneDevice::initUTM(size_t size) {
 Error
 KeystoneDevice::finalize(
     uintptr_t runtimePhysAddr, uintptr_t eappPhysAddr, uintptr_t freePhysAddr,
-    uintptr_t freeRequested) {
+    uintptr_t freeRequested, const unsigned char* uuid) {
   struct keystone_ioctl_create_enclave encl;
   encl.eid            = eid;
   encl.runtime_paddr  = runtimePhysAddr;
   encl.user_paddr     = eappPhysAddr;
   encl.free_paddr     = freePhysAddr;
   encl.free_requested = freeRequested;
+  strncpy((char*)encl.uuid, (const char*)uuid, UUID_LEN);  
 
   if (ioctl(fd, KEYSTONE_IOC_FINALIZE_ENCLAVE, &encl)) {
     perror("ioctl error");
@@ -156,7 +157,7 @@ MockKeystoneDevice::initUTM(size_t size) {
 Error
 MockKeystoneDevice::finalize(
     uintptr_t runtimePhysAddr, uintptr_t eappPhysAddr, uintptr_t freePhysAddr,
-    uintptr_t freeRequested) {
+    uintptr_t freeRequested, const unsigned char* uuid) {
   return Error::Success;
 }
 

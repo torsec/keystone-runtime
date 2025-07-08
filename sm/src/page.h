@@ -21,16 +21,18 @@
 #define PTE_G                _UL(0x020) /* Global */
 #define PTE_A                _UL(0x040) /* Accessed */
 #define PTE_D                _UL(0x080) /* Dirty */
-#define PTE_SOFT            _UL(0x300) /* Reserved for Software */
+#define PTE_SOFT             _UL(0x300) /* Reserved for Software */
 
 #if __riscv_xlen == 64
 # define RISCV_PGLEVEL_MASK 0x1ff
 # define RISCV_PGTABLE_HIGHEST_BIT 0x100
 # define RISCV_PGLEVEL_BITS 9
+# define SATP_PPN  0x00000FFFFFFFFFFF
 #else
 # define RISCV_PGLEVEL_MASK 0x3ff
 # define RISCV_PGTABLE_HIGHEST_BIT 0x300
 # define RISCV_PGLEVEL_BITS 10
+# define SATP_PPN  0x003FFFFF
 #endif
 
 #define PTE_PPN_SHIFT 10

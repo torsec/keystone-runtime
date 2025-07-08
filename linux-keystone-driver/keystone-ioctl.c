@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 #include "keystone.h"
 #include "keystone-sbi.h"
-#include "keystone_user.h"
+// #include "keystone_user.h"
 #include <asm/sbi.h>
 #include <linux/uaccess.h>
 #include <linux/string.h>
@@ -72,6 +72,9 @@ int keystone_finalize_enclave(unsigned long arg)
   create_args.user_paddr = enclp->user_paddr;
   create_args.free_paddr = enclp->free_paddr;
   create_args.free_requested = enclp->free_requested;
+
+  for (int i = 0; i < UUID_LEN; i++)
+		create_args.uuid[i] = enclp->uuid[i];
 
   ret = sbi_sm_create_enclave(&create_args);
 
@@ -220,10 +223,37 @@ int keystone_resume_enclave(unsigned long data)
   return 0;
 }
 
+int keystone_runtime_attestation(unsigned long data)
+{
+  keystone_ioctl_runtime_attestation *args = (keystone_ioctl_runtime_attestation *) data;
+  struct sbiret ret;
+
+  if (!args)
+	 	return -ENOMEM;
+  
+  ret = sbi_sm_runtime_attestation((struct keystone_sbi_runtime_attestation_t *) args);
+
+  return 0;
+}
+
+// int keystone_get_lak_cert(unsigned long data) {
+	//  struct sbiret ret;
+	//  int retval = 0;
+//  
+	//  struct keystone_ioctl_lak_cert *arg = (struct keystone_ioctl_lak_cert*) data;
+	//  if (!arg)
+      //  return ENOMEM;
+//  
+	//  ret = sbi_sm_call(SBI_SM_GET_LAK_CERT, (unsigned long) arg);
+//  
+	//  return retval;
+// }
+
+
 long keystone_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
   long ret;
-  char data[512];
+  char data[4096];
 
   size_t ioc_size;
 
@@ -258,6 +288,9 @@ long keystone_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
      * We didn't identified the exact problem, so we'll have these until we figure out */
     case KEYSTONE_IOC_UTM_INIT:
       ret = utm_init_ioctl(filep, (unsigned long) data);
+      break;
+    case KEYSTONE_IOC_RUNTIME_ATTESTATION:
+      ret = keystone_runtime_attestation((unsigned long) data);
       break;
     default:
       return -ENOSYS;

@@ -6,7 +6,7 @@
 #define _KEYSTONE_SBI_
 
 #include "keystone_user.h"
-#include "sm_call.h"
+// #include "sm_call.h"
 
 #include <asm/sbi.h>
 
@@ -14,5 +14,6 @@ struct sbiret sbi_sm_create_enclave(struct keystone_sbi_create_t* args);
 struct sbiret sbi_sm_destroy_enclave(unsigned long eid);
 struct sbiret sbi_sm_run_enclave(unsigned long eid);
 struct sbiret sbi_sm_resume_enclave(unsigned long eid);
+struct sbiret sbi_sm_runtime_attestation(struct keystone_sbi_runtime_attestation_t* args);
 
 #endif

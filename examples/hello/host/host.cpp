@@ -14,6 +14,7 @@ main(int argc, char** argv) {
 
   params.setFreeMemSize(256 * 1024);
   params.setUntrustedSize(256 * 1024);
+  params.setUuid("123e4567-e89b-12d3-a456-426614174000");  // Example UUID
 
   enclave.init(argv[1], argv[2], argv[3], params);
 
