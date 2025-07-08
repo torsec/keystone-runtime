@@ -75,23 +75,23 @@ struct enclave
   byte sign[SIGNATURE_SIZE];
 
   // DICE parameters
-  // byte CDI[64];
-  // byte local_att_pub[32];
-  // byte local_att_priv[64];
-  // mbedtls_x509write_cert crt_local_att;
+  byte CDI[64];
+  byte local_att_pub[32];
+  byte local_att_priv[64];
+  mbedtls_x509write_cert crt_local_att;
+  // Convert crt_local_att to DER format using "mbedtls_x509write_crt_der" when needed to save space.
   // unsigned char crt_local_att_der[MAX_CERT_LEN];
   // int crt_local_att_der_length;
 
-  // byte pk_ldev[32];
-  // byte sk_ldev[64];
-  // mbedtls_x509write_cert crt_ldev;
+  byte pk_ldev[32];
+  byte sk_ldev[64];
+  mbedtls_x509write_cert crt_ldev;
   // unsigned char crt_ldev_der[MAX_CERT_LEN];
   // int crt_ldev_der_length;
 
   // byte sk_array[10][64];
   // byte pk_array[10][32];
-  // int n_keypair;
-
+  int n_keypair;
 
   /* parameters */
   struct runtime_params_t params;
@@ -139,6 +139,14 @@ struct runtime_report
   byte nonce[NONCE_LEN];
 };
 
+// DICE attestation certificate chain (man, root, SM, LAK)
+struct dice_attestation_cert_chain
+{
+  unsigned char certs[4][MAX_CERT_LEN];
+  int certs_len[4];
+  byte uuid[UUID_LEN];
+};
+
 /* sealing key structure */
 #define SEALING_KEY_SIZE 128
 struct sealing_key
@@ -169,11 +177,14 @@ unsigned long attest_enclave(uintptr_t report, uintptr_t data, uintptr_t size, e
 // attestation
 unsigned long validate_and_hash_enclave(struct enclave* enclave);
 unsigned long runtime_attestation(struct runtime_report *report);
+unsigned long get_dice_cert_chain(struct dice_attestation_cert_chain *cert_chain);
 // TODO: These functions are supposed to be internal functions.
 void enclave_init_metadata(void);
 unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create_t* dest);
 unsigned long copy_runtime_attestation_report_into_sm(uintptr_t src, struct runtime_report* dest);
 unsigned long copy_runtime_attestation_report_from_sm(struct runtime_report* src, uintptr_t dest);
+unsigned long copy_cert_chain_data_into_sm(uintptr_t src, struct dice_attestation_cert_chain* dest);
+unsigned long copy_cert_chain_data_from_sm(struct dice_attestation_cert_chain* src, uintptr_t dest);
 int get_enclave_region_index(enclave_id eid, enum enclave_region_type type);
 uintptr_t get_enclave_region_base(enclave_id eid, int memid);
 uintptr_t get_enclave_region_size(enclave_id eid, int memid);

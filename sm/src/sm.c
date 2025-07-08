@@ -9,6 +9,7 @@
 #include "enclave.h"
 #include "platform-hook.h"
 #include "sm-sbi-opensbi.h"
+#include "sha3/sha3.h"
 #include <sbi/sbi_string.h>
 #include <sbi/riscv_locks.h>
 #include <sbi/riscv_barrier.h>
@@ -30,6 +31,19 @@ byte sm_signature[SIGNATURE_SIZE] = { 0, };
 byte sm_public_key[PUBLIC_KEY_SIZE] = { 0, };
 byte sm_private_key[PRIVATE_KEY_SIZE] = { 0, };
 byte dev_public_key[PUBLIC_KEY_SIZE] = { 0, };
+byte sm_cert[CERT_SIZE];
+byte dev_cert[CERT_SIZE];
+byte man_cert[CERT_SIZE];
+int sm_cert_len;
+int dev_cert_len;
+int man_cert_len;
+
+mbedtls_x509_crt uff_cert_sm;
+mbedtls_x509_crt uff_cert_root;
+mbedtls_x509_crt uff_cert_man;
+
+sha3_ctx_t ctx_hash;
+unsigned int sanctum_sm_size = 0x1ff000;
 
 int osm_pmp_set(uint8_t perm)
 {

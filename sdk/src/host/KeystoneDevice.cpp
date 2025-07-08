@@ -48,7 +48,7 @@ KeystoneDevice::finalize(
   encl.user_paddr     = eappPhysAddr;
   encl.free_paddr     = freePhysAddr;
   encl.free_requested = freeRequested;
-  strncpy((char*)encl.uuid, (const char*)uuid, UUID_LEN);  
+  strncpy((char*)encl.uuid, (const char*)uuid, UUID_LEN);
 
   if (ioctl(fd, KEYSTONE_IOC_FINALIZE_ENCLAVE, &encl)) {
     perror("ioctl error");

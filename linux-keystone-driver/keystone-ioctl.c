@@ -229,25 +229,25 @@ int keystone_runtime_attestation(unsigned long data)
   struct sbiret ret;
 
   if (!args)
-	 	return -ENOMEM;
-  
+		return -ENOMEM;
+
   ret = sbi_sm_runtime_attestation((struct keystone_sbi_runtime_attestation_t *) args);
 
   return 0;
 }
 
-// int keystone_get_lak_cert(unsigned long data) {
-	//  struct sbiret ret;
-	//  int retval = 0;
-//  
-	//  struct keystone_ioctl_lak_cert *arg = (struct keystone_ioctl_lak_cert*) data;
-	//  if (!arg)
-      //  return ENOMEM;
-//  
-	//  ret = sbi_sm_call(SBI_SM_GET_LAK_CERT, (unsigned long) arg);
-//  
-	//  return retval;
-// }
+int keystone_get_dice_cert_chain(unsigned long data)
+{
+  keystone_ioctl_dice_cert_chain *args = (keystone_ioctl_dice_cert_chain *) data;
+  struct sbiret ret;
+
+  if (!args)
+		return -ENOMEM;
+
+  ret = sbi_sm_get_dice_cert_chain((struct keystone_sbi_dice_attestation_cert_chain_t *) args);
+
+  return 0;
+}
 
 
 long keystone_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
@@ -291,6 +291,9 @@ long keystone_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
       break;
     case KEYSTONE_IOC_RUNTIME_ATTESTATION:
       ret = keystone_runtime_attestation((unsigned long) data);
+      break;
+    case KEYSTONE_IOC_GET_LAK_CERT:
+      ret = keystone_get_dice_cert_chain((unsigned long) data);
       break;
     default:
       return -ENOSYS;

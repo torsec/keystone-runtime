@@ -99,4 +99,11 @@ struct keystone_sbi_runtime_attestation_t {
   byte nonce[NONCE_LEN];
 };
 
+// DICE attestation certificate chain (man, root, SM, LAK)
+struct keystone_sbi_dice_attestation_cert_chain_t {
+  unsigned char certs[4][MAX_CERT_LEN];
+  int certs_len[4];
+  byte uuid[UUID_LEN];
+};
+
 #endif  // __SM_CALL_H__

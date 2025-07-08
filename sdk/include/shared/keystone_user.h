@@ -29,7 +29,7 @@
 #define KEYSTONE_IOC_RUNTIME_ATTESTATION \
   _IOR(KEYSTONE_IOC_MAGIC, 0x08, keystone_ioctl_runtime_attestation)
 #define KEYSTONE_IOC_GET_LAK_CERT \
-  _IOR(KEYSTONE_IOC_MAGIC, 0x0A, struct keystone_ioctl_lak_cert)
+  _IOR(KEYSTONE_IOC_MAGIC, 0x0A, keystone_ioctl_dice_cert_chain)
 
 #define RT_NOEXEC 0
 #define USER_NOEXEC 1
@@ -64,13 +64,14 @@ struct keystone_ioctl_run_enclave {
   uintptr_t value;
 };
 
-struct keystone_ioctl_lak_cert {
-    unsigned char uuid[UUID_LEN];
-    unsigned char cert_lak[MAX_CERT_LEN];
-    int cert_len;
-};
+// struct keystone_ioctl_lak_cert {
+//     unsigned char uuid[UUID_LEN];
+//     unsigned char cert_lak[MAX_CERT_LEN];
+//     int cert_len;
+// };
 
 // For name consistency
 typedef struct keystone_sbi_runtime_attestation_t keystone_ioctl_runtime_attestation;
+typedef struct keystone_sbi_dice_attestation_cert_chain_t keystone_ioctl_dice_cert_chain;
 
 #endif

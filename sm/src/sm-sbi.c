@@ -100,13 +100,13 @@ unsigned long sbi_sm_call_plugin(uintptr_t plugin_id, uintptr_t call_id, uintptr
 
 unsigned long sbi_sm_runtime_attestation(uintptr_t report) {
   struct runtime_report report_local;
-  
-  unsigned long ret = copy_runtime_attestation_report_into_sm(report, &report_local);  
+
+  unsigned long ret = copy_runtime_attestation_report_into_sm(report, &report_local);
   if (ret) {
     sbi_printf("[SM] Error while copying runtime attestation report\n");
     return ret;
   }
-  
+
   ret = runtime_attestation(&report_local);
   if (ret)
     return ret;
@@ -119,22 +119,25 @@ unsigned long sbi_sm_runtime_attestation(uintptr_t report) {
 }
 
 
-// unsigned long sbi_sm_get_lak_cert(uintptr_t args) {
-//   struct lak_cert_args local_args;
-//   unsigned long ret;
+unsigned long sbi_sm_get_dice_cert_chain(uintptr_t cert_data) {
+  struct dice_attestation_cert_chain local_cert_chain;
 
-//   // Retrieve LAK cert from the SM
-//   if (copy_to_sm(&local_args, args, sizeof(struct lak_cert_args)))
-//     return SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
-  
-//   ret = get_cert(local_args.uuid, local_args.cert_lak, &(local_args.cert_len), CERT_LAK);
-//   if (ret != SBI_ERR_SM_ENCLAVE_SUCCESS)
-//     return ret;
+  unsigned long ret = copy_cert_chain_data_into_sm(cert_data, &local_cert_chain);
+  if (ret) {
+    sbi_printf("[SM] Error while copying DICE cert chain data into SM\n");
+    return ret;
+  }
 
-//   // Copy cert data back to user space
-//   if (copy_from_sm(args, &local_args, sizeof(struct lak_cert_args)))
-//     return SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
+  get_dice_cert_chain(&local_cert_chain);
 
-//   return ret;
-// }
+  // Copy the cert chain back to the provided memory location
+  ret = copy_cert_chain_data_from_sm(&local_cert_chain, cert_data);
+  if (ret) {
+    sbi_printf("[SM] Error while copying DICE cert chain data from SM\n");
+    return ret;
+  }
 
+  sbi_printf("[SM] DICE cert chain retrieved successfully\n");
+
+  return SBI_ERR_SM_ENCLAVE_SUCCESS;
+}

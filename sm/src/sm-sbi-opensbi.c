@@ -72,9 +72,9 @@ static int sbi_ecall_keystone_enclave_handler(unsigned long extid, unsigned long
     case SBI_SM_RUNTIME_ATTEST:
       retval = sbi_sm_runtime_attestation(regs->a0);
       break;
-    // case SBI_SM_GET_LAK_CERT:
-    //   retval = sbi_sm_get_lak_cert(regs->a0);
-    //   break;
+    case SBI_SM_GET_LAK_CERT:
+      retval = sbi_sm_get_dice_cert_chain(regs->a0);
+      break;
     default:
       retval = SBI_ERR_SM_NOT_IMPLEMENTED;
       break;

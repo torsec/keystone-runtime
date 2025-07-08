@@ -41,4 +41,7 @@ sbi_sm_call_plugin(uintptr_t plugin_id, uintptr_t call_id, uintptr_t arg0, uintp
 unsigned long
 sbi_sm_runtime_attestation(uintptr_t report);
 
+unsigned long
+sbi_sm_get_dice_cert_chain(uintptr_t cert_data);
+
 #endif
