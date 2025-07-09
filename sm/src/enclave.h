@@ -22,7 +22,7 @@
 /* TODO: does not support multithreaded enclave yet */
 #define MAX_ENCL_THREADS 1
 
-#define PRINT_TICKS 1
+#define PRINT_TICKS 0
 
 typedef uintptr_t pte_t;
 
@@ -155,12 +155,12 @@ struct sealing_key
   uint8_t signature[SIGNATURE_SIZE];
 };
 
-struct lak_cert_args
-{
-    unsigned char uuid[UUID_LEN];
-    unsigned char cert_lak[MAX_CERT_LEN];
-    int cert_len;
-};
+// struct lak_cert_args
+// {
+//     unsigned char uuid[UUID_LEN];
+//     unsigned char cert_lak[MAX_CERT_LEN];
+//     int cert_len;
+// };
 
 
 /*** SBI functions & external functions ***/

@@ -103,7 +103,7 @@ unsigned long validate_and_hash_enclave(struct enclave* enclave) {
 
   hash_finalize(enclave->hash, &ctx);
 
-   #if PRINT_TICKS
+  #if PRINT_TICKS
   time_end = sbi_timer_value();
   sbi_printf("\n[SM] Time elapsed for boot-time measurement: %lu ticks\n", time_end - time_start);
   #endif

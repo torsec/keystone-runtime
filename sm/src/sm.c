@@ -96,9 +96,17 @@ int sm_derive_sealing_key(unsigned char *key, const unsigned char *key_ident,
 
 static void sm_print_hash(void)
 {
+  sbi_printf("[SM] SM hash: ");
   for (int i=0; i<MDSIZE; i++)
   {
     sbi_printf("%02x", (char) sm_hash[i]);
+  }
+  sbi_printf("\n");
+
+  sbi_printf("[SM] SM signature: ");
+  for (int i=0; i<SIGNATURE_SIZE; i++)
+  {
+    sbi_printf("%02x", (char) sm_signature[i]);
   }
   sbi_printf("\n");
 }

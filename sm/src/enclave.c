@@ -475,10 +475,9 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create_t
 
     ed25519_create_keypair(enclaves[eid].local_att_pub, enclaves[eid].local_att_priv, enclaves[eid].CDI);
 
-    sbi_printf("[SM] public_key: 0x");
-    for (int i = 0; i < 32; i++) {
+    sbi_printf("[SM] LAK (public): 0x");
+    for (int i = 0; i < 32; i++)
         sbi_printf("%02x", enclaves[eid].local_att_pub[i]);
-    }
     sbi_printf("\n");
 
     mbedtls_x509write_crt_init(&enclaves[eid].crt_local_att);
@@ -587,13 +586,6 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create_t
     // The der format of the cert and its length are stored in the specific variables of the enclave structure
     // enclaves[eid].crt_local_att_der_length = effe_len_cert_der;
     // sbi_memcpy(enclaves[eid].crt_local_att_der, cert_real, effe_len_cert_der);
-
-    sbi_printf("[SM] LAK certificate [%d bytes]: 0x", effe_len_cert_der);
-    for (int i = 0; i < effe_len_cert_der; i++) {
-        // sbi_printf("%02x", enclaves[eid].crt_local_att_der[i]);
-        sbi_printf("%02x", cert_real[i]);
-    }
-    sbi_printf("\n");
 
     // The number of the keypair associated to the created enclave that are not the local attestation keys is set to 0
     enclaves[eid].n_keypair = 0;
@@ -899,7 +891,7 @@ unsigned long runtime_attestation(struct runtime_report *report) {
     // Copy hash and nonce to temp buffer (hash || nonce)
     sbi_memcpy(sign_buffer, enclaves[eid].runtime_hash, MDSIZE);
     sbi_memcpy(sign_buffer + MDSIZE, report->nonce, NONCE_LEN);
-    // ed25519_sign(report->enclave.signature, sign_buffer, MDSIZE + NONCE_LEN, enclaves[eid].local_att_pub, enclaves[eid].local_att_priv);
+    ed25519_sign(report->enclave.signature, sign_buffer, MDSIZE + NONCE_LEN, enclaves[eid].local_att_pub, enclaves[eid].local_att_priv);
 
     sbi_memcpy(report->dev_public_key, dev_public_key, PUBLIC_KEY_SIZE);
     sbi_memcpy(report->sm.hash, sm_hash, MDSIZE);
@@ -913,7 +905,7 @@ unsigned long runtime_attestation(struct runtime_report *report) {
 
     ret = SBI_ERR_SM_ENCLAVE_SUCCESS;
 
-    sbi_printf("[SM] Operation completed\n");
+    sbi_printf("Operation completed\n");
 
  #if PRINT_TICKS
     time_end = sbi_timer_value();
@@ -927,8 +919,6 @@ err_unlock:
 }
 
 unsigned long get_dice_cert_chain(struct dice_attestation_cert_chain *cert_chain) {
-    int ret, dif;
-
     // Retrieve the enclave ID from the arguments
     enclave_id eid = get_enclave_id_by_uuid(cert_chain->uuid);
 
@@ -939,12 +929,11 @@ unsigned long get_dice_cert_chain(struct dice_attestation_cert_chain *cert_chain
 
     // Extract the DER format of the LAK certificate
     unsigned char lak_cert_der[MAX_CERT_LEN];
-    int effe_len_cert_der = 0;
+    int ret, dif, effe_len_cert_der = 0;
 
     ret = mbedtls_x509write_crt_der(&enclaves[eid].crt_local_att, lak_cert_der, MAX_CERT_LEN, NULL, NULL);
     if (ret > 0) {
         effe_len_cert_der = ret;
-        ret = 0;
     } else
         return SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR;
 
@@ -962,12 +951,6 @@ unsigned long get_dice_cert_chain(struct dice_attestation_cert_chain *cert_chain
     cert_chain->certs_len[1] = dev_cert_len;
     cert_chain->certs_len[2] = sm_cert_len;
     cert_chain->certs_len[3] = effe_len_cert_der;
-
-    // sbi_printf("[SM] LAK certificate to return [%d bytes]: 0x", effe_len_cert_der);
-    // for (int i = 0; i < effe_len_cert_der; i++) {
-    //     sbi_printf("%02x", cert_chain->certs[3][i]);
-    // }
-    // sbi_printf("\n");
 
     return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }

@@ -222,7 +222,7 @@ int bootloader() {
   mbedtls_x509write_crt_set_key_usage(&cert, MBEDTLS_X509_KU_DIGITAL_SIGNATURE | MBEDTLS_X509_KU_KEY_CERT_SIGN);
 
   // The validity of the crt is specified
-  ret = mbedtls_x509write_crt_set_validity(&cert, "20230101000000", "20250101000000");
+  ret = mbedtls_x509write_crt_set_validity(&cert, "20230101000000", "20260101000000");
   if (ret != 0)
   {
     return 0;
